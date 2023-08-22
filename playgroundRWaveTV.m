@@ -23,7 +23,7 @@ for it = 1:Nt
     axis tight
     pause(1/Properties.FrameRate)
 end
-%% Subsampling
+%% Subsampling in depth
 sonoNew = zeros([Nz/2,Nx,Nt]);
 for ix = 1:Nx
     for it = 1:Nt
@@ -41,13 +41,137 @@ for it = 1:Nt
     pause(1/Properties.FrameRate)
 end
 
-%%
-
-sonoNew2 = zeros([Nz/2,Nx,floor(Nt/2)]);
+%% Subsampling in time
+sonoNew2 = zeros([Nz/2,Nx,ceil(Nt/2)]);
 for ix = 1:Nx
-    for it = 1:Nt
-        sonoNew2(:,ix,it) = decimate(sonoFilt(:,ix,it),2);
+    for iz = 1:Nz/2
+        sonoNew2(iz,ix,:) = decimate(squeeze(sonoNew(iz,ix,:)),2);
+    end
+end
+%%
+figure,
+for it = 1:size(sonoNew2,3)
+    imagesc(x,z,sonoNew2(:,:,it),1.5*[-1 1])
+    colorbar
+    axis equal
+    axis tight
+    pause(1/Properties.FrameRate)
+end
+%% Computing SWS images
+RW_Param.dual = boolean(1); RW_Param.k = 1;
+RW_Param.N_window = 20; RW_Param.beta = 1/100000;
+RW_Param.tolerance = 1/1000;RW_Param.operator = 'G';
+RW_Param.alpha=2;
+tic
+SWSsub = rWave2(sonoNew2,Properties,RW_Param);
+toc
+tic
+SWS = rWave2(sonoFilt,Properties,RW_Param);
+toc
+%% Comparing results
+SWS_im_range = [2 5.5];
+x = 1000*Properties.Width_S;
+z = 1000*Properties.Depth_S;
+figure('Position', [200 200 800 350]);
+subplot(121),
+imagesc(x,z,SWS,SWS_im_range);
+colormap turbo
+colorbar
+axis equal
+xlim([x(1) x(end)]), xlabel('x [mm]')
+ylim([z(1) z(end)]), ylabel('z [mm]')
+title('SWS from raw video')
+ax = gca; ax.FontSize = 12;
+
+subplot(122),
+imagesc(x,z,SWSsub,SWS_im_range);
+colormap turbo
+colorbar
+axis equal
+xlim([x(1) x(end)]), xlabel('x [mm]')
+ylim([z(1) z(end)]), ylabel('z [mm]')
+title('SWS from subsampled video')
+ax = gca; ax.FontSize = 12;
+
+%% Selecting ROI and cleaning workspace
+sonoSub = sonoNew2(20:140,:,:);
+clear sono sonoNew2 sonoNew sonoFilt
+
+%% Generating A matrix
+iz = floor(Nz/2);
+
+[Nz,Nx,Nt] = size(sonoSub);
+B = [];
+A = zeros(1,Nz*Nx);
+n=1;
+for frame = 1:size(sonoSub,3)
+    % Finding indices for each peak in each line (1x128)
+    sonoLine = squeeze(sonoSub(iz,:,frame));
+    [iPeaks] = peakfinder(sonoLine/max(sonoLine(:)),0);
+    
+    % Ignoring if peaks are in the start, the end, or there are none
+    if size(iPeaks,2)<2, continue; end
+    if(iPeaks(1)==1), iPeaks=iPeaks(2:end); end          
+    if(iPeaks(end)==size(sonoSub,2)), iPeaks=iPeaks(1:end-1); end
+    if size(iPeaks,2)<2, continue; end
+
+    % SWS for each wavelength
+    lamdaSamples = diff(iPeaks);
+    swsLamda = lamdaSamples*2* Properties.pitch * Properties.VibFreq;
+
+    % Extrapolation at the start (nearest neighbour)
+    A(n,1:iPeaks(1)) = 1/(iPeaks(1));
+    B = [B; swsLamda(1)];
+    n = n+1;
+
+    % Estimation of weighted coefficients
+    for i=1:size(swsLamda,2) % For each wavelength
+        A(n,iPeaks(i)+1:iPeaks(i+1))= 1/lamdaSamples(i);
+        B = [B; swsLamda(i)]; 
+        n = n+1;
+    end
+    
+    % Extrapolation at the end
+    A(n,(iPeaks(end)+1):Nx) = 1/(Nx-(iPeaks(end)+1)+1); 
+    B = [B; swsLamda(end)]; 
+    n = n+1;
+end
+
+if RW_Param.dual
+    % Find valleys too
+    for frame=1:size(sonoSub,3)
+        sonoLine=squeeze(-1*sonoSub(iz,:,frame));
+
+        % Repeating the same procedure
+        [iPeaks] = peakfinder(sonoLine/max(sonoLine(:)),0);
+        if size(iPeaks,2)<2, continue; end
+        if(iPeaks(1)==1), iPeaks=iPeaks(2:end); end
+        if(iPeaks(end)==size(sonoSub,2)), iPeaks=iPeaks(1:end-1); end
+        if size(iPeaks,2)<2, continue; end
+        lamdaSamples = diff(iPeaks);
+        swsLamda = lamdaSamples*2* Properties.pitch * Properties.VibFreq;
+        A(n,1:iPeaks(1)) = 1/(iPeaks(1));
+        B = [B; swsLamda(1)];
+        n = n+1;
+        for i=1:size(swsLamda,2) % For each wavelength
+            A(n,iPeaks(i)+1:iPeaks(i+1))= 1/lamdaSamples(i);
+            B = [B; swsLamda(i)]; 
+            n = n+1;
+        end
+        A(n,(iPeaks(end)+1):Nx) = 1/(Nx-(iPeaks(end)+1)+1);
+        B = [B; swsLamda(end)];
+        n = n+1;
     end
 end
 
+%% Plotting matrices
+figure, 
+imagesc(A)
+set(gca,'cLim',[0.04 0.08])
+title('Weight matrix A')
+xlabel('Lateral sample')
+ylabel('# of wavelength')
+colorbar
+xlim([1,256])
+ylim([1,100])
 
