@@ -1,7 +1,7 @@
 %% Loading filtered sono signal
 clear, clc
-baseDir = 'C:\Users\sebas\Documents\MATLAB\Elastography';
-%baseDir = 'C:\Users\smerino.C084288\Documents\MATLAB\Datasets';
+%baseDir = 'C:\Users\sebas\Documents\MATLAB\Elastography';
+baseDir = 'C:\Users\smerino.C084288\Documents\MATLAB\Datasets';
 sonoPath = [baseDir,'\heterogeneo_sono'];
 swsRange = [2,8];  
 move = 'left';
@@ -98,74 +98,81 @@ sonoSub = sonoNew2(20:140,:,:);
 clear sono sonoNew2 sonoNew sonoFilt
 
 %% Generating A matrix
-iz = floor(Nz/2);
-
 [Nz,Nx,Nt] = size(sonoSub);
+%iz = floor(Nz/2);
 B = [];
-A = zeros(1,Nz*Nx);
-n=1;
-for frame = 1:size(sonoSub,3)
-    % Finding indices for each peak in each line (1x128)
-    sonoLine = squeeze(sonoSub(iz,:,frame));
-    [iPeaks] = peakfinder(sonoLine/max(sonoLine(:)),0);
-    
-    % Ignoring if peaks are in the start, the end, or there are none
-    if size(iPeaks,2)<2, continue; end
-    if(iPeaks(1)==1), iPeaks=iPeaks(2:end); end          
-    if(iPeaks(end)==size(sonoSub,2)), iPeaks=iPeaks(1:end-1); end
-    if size(iPeaks,2)<2, continue; end
-
-    % SWS for each wavelength
-    lamdaSamples = diff(iPeaks);
-    swsLamda = lamdaSamples*2* Properties.pitch * Properties.VibFreq;
-
-    % Extrapolation at the start (nearest neighbour)
-    A(n,1:iPeaks(1)) = 1/(iPeaks(1));
-    B = [B; swsLamda(1)];
-    n = n+1;
-
-    % Estimation of weighted coefficients
-    for i=1:size(swsLamda,2) % For each wavelength
-        A(n,iPeaks(i)+1:iPeaks(i+1))= 1/lamdaSamples(i);
-        B = [B; swsLamda(i)]; 
-        n = n+1;
-    end
-    
-    % Extrapolation at the end
-    A(n,(iPeaks(end)+1):Nx) = 1/(Nx-(iPeaks(end)+1)+1); 
-    B = [B; swsLamda(end)]; 
-    n = n+1;
-end
-
-if RW_Param.dual
-    % Find valleys too
-    for frame=1:size(sonoSub,3)
-        sonoLine=squeeze(-1*sonoSub(iz,:,frame));
-
-        % Repeating the same procedure
+A = [];
+for iz = 1:Nz
+    Az = zeros(1,Nx); % Weight matrix for line iz
+    n=1;
+    for frame = 1:size(sonoSub,3)
+        % Finding indices for each peak in each line (1x128)
+        sonoLine = squeeze(sonoSub(iz,:,frame));
         [iPeaks] = peakfinder(sonoLine/max(sonoLine(:)),0);
+        
+        % Ignoring if peaks are in the start, the end, or there are none
         if size(iPeaks,2)<2, continue; end
-        if(iPeaks(1)==1), iPeaks=iPeaks(2:end); end
+        if(iPeaks(1)==1), iPeaks=iPeaks(2:end); end          
         if(iPeaks(end)==size(sonoSub,2)), iPeaks=iPeaks(1:end-1); end
         if size(iPeaks,2)<2, continue; end
+    
+        % SWS for each wavelength
         lamdaSamples = diff(iPeaks);
         swsLamda = lamdaSamples*2* Properties.pitch * Properties.VibFreq;
-        A(n,1:iPeaks(1)) = 1/(iPeaks(1));
+    
+        % Extrapolation at the start (nearest neighbour)
+        Az(n,1:iPeaks(1)) = 1/(iPeaks(1));
         B = [B; swsLamda(1)];
         n = n+1;
+    
+        % Estimation of weighted coefficients
         for i=1:size(swsLamda,2) % For each wavelength
-            A(n,iPeaks(i)+1:iPeaks(i+1))= 1/lamdaSamples(i);
+            Az(n,iPeaks(i)+1:iPeaks(i+1))= 1/lamdaSamples(i);
             B = [B; swsLamda(i)]; 
             n = n+1;
         end
-        A(n,(iPeaks(end)+1):Nx) = 1/(Nx-(iPeaks(end)+1)+1);
-        B = [B; swsLamda(end)];
+        
+        % Extrapolation at the end
+        Az(n,(iPeaks(end)+1):Nx) = 1/(Nx-(iPeaks(end)+1)+1); 
+        B = [B; swsLamda(end)]; 
         n = n+1;
     end
+    
+    if RW_Param.dual
+        % Find valleys too
+        for frame=1:size(sonoSub,3)
+            sonoLine=squeeze(-1*sonoSub(iz,:,frame));
+    
+            % Repeating the same procedure
+            [iPeaks] = peakfinder(sonoLine/max(sonoLine(:)),0);
+            if size(iPeaks,2)<2, continue; end
+            if(iPeaks(1)==1), iPeaks=iPeaks(2:end); end
+            if(iPeaks(end)==size(sonoSub,2)), iPeaks=iPeaks(1:end-1); end
+            if size(iPeaks,2)<2, continue; end
+            lamdaSamples = diff(iPeaks);
+            swsLamda = lamdaSamples*2* Properties.pitch * Properties.VibFreq;
+            Az(n,1:iPeaks(1)) = 1/(iPeaks(1));
+            B = [B; swsLamda(1)];
+            n = n+1;
+            for i=1:size(swsLamda,2) % For each wavelength
+                Az(n,iPeaks(i)+1:iPeaks(i+1))= 1/lamdaSamples(i);
+                B = [B; swsLamda(i)]; 
+                n = n+1;
+            end
+            Az(n,(iPeaks(end)+1):Nx) = 1/(Nx-(iPeaks(end)+1)+1);
+            B = [B; swsLamda(end)];
+            n = n+1;
+        end
+    end
+    %Nw = size(Az,1);    % Number of wavelengths
+    if iz == 1
+        A = Az;
+    else
+        A = [A zeros(size(A,1),Nx);zeros(size(Az,1),Nx*(iz-1)),Az];
+    end
 end
-
 %% Plotting matrices
-figure, 
+figure('Position', [100 100 500 800]), 
 imagesc(A)
 set(gca,'cLim',[0.04 0.08])
 title('Weight matrix A')
@@ -173,5 +180,5 @@ xlabel('Lateral sample')
 ylabel('# of wavelength')
 colorbar
 xlim([1,256])
-ylim([1,100])
+ylim([1,500])
 
