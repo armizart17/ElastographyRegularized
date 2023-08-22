@@ -1,7 +1,16 @@
+%% Sample matrix X
 M = 10;
 N = 6;
 %M = 200;
 %N = 120;
+
+X = ones(M,N);
+X(1:floor(M/2),1:floor(N/2)) = 0;
+% X = randn(M,N);
+figure, imagesc(X)
+colorbar
+axis equal
+axis tight
 %% Differential operator for 1D vector
 D = spdiags([-ones(M,1) ones(M,1)], [0 1], M,M+1);
 D(:,end) = [];
@@ -35,14 +44,6 @@ colorbar
 axis equal
 axis tight
 
-%% Sample matrix X
-X = ones(M,N);
-X(1:floor(M/2),1:floor(N/2)) = 0;
-% X = randn(M,N);
-figure, imagesc(X)
-colorbar
-axis equal
-axis tight
 %% Difference matrices and differential operators
 
 Dh = diff(X,[],1);
@@ -160,8 +161,9 @@ axis tight
 title('Dy operator')
 
 %% New differential operator in x
-M = 10;
-N = 6;
+Xt = X';
+xRow = Xt(:);
+
 D = spdiags([-ones(N,1) ones(N,1)], [0 1], N,N+1);
 D(:,end) = [];
 D(N,N) = 0;
@@ -205,18 +207,20 @@ colorbar
 axis equal
 axis tight
 
+Dh = Dx*xRow;
+Dv = Dy*xRow;
+
 % Inverse of gradients
 P = Dh.^2 + Dv.^2;
 eps = 0.01;
 P = 2*sqrt(P.^2 + eps^2);
 P = P.^(-0.5);
-figure, imagesc(P)
+figure, imagesc(reshape(P,[N,M])')
 colorbar
 axis equal
 axis tight
 
 % W and omega matrices
-P = P(:);
 omega = speye(M*N);
 omega = spdiags(P,0,omega);
 W = kron(speye(2),omega);
@@ -236,35 +240,46 @@ size(A'*b)
 %% Adapting functions
 
 % Total Variation: 0.5*||A*u(:)-b||_2^2 + lambda*TV(u)
-function u = IRLS_TV(b,A,mu,M,N,tol,mask,isotropic)
+function u = IRLS_TV(b,A,mu,M,N,tol,mask,isotropic,rowMajor)
 
 [u,~] = cgs2(A'*A,A'*b,1e-6,20);
 
-G(1) = 1/2*(norm( (b - A*u) ))^2 + mu*TVcalc(u,M,N,mask,isotropic);
+G(1) = 1/2*(norm( (b - A*u) ))^2 + mu*TVcalc(u,M,N,mask,isotropic,rowMajor);
 
-D = spdiags([-ones(N,1) ones(N,1)], [0 1], N,N+1);
-D(:,end) = [];
-D(N,N) = 0;
-Dx = kron(speye(M),D);
-
-D = spdiags([-ones(M,1) ones(M,1)], [0 1], M,M+1);
-D(:,end) = [];
-D(M,M) = 0;
-Dy = kron(D,speye(N));
-
+if rowMajor
+    D = spdiags([-ones(M,1) ones(M,1)], [0 1], M,M+1);
+    D(:,end) = [];
+    D(M,M) = 0;
+    Dx = kron(speye(N),D);
+    
+    D = spdiags([-ones(N,1) ones(N,1)], [0 1], N,N+1);
+    D(:,end) = [];
+    D(N,N) = 0;
+    Dy = kron(D,speye(M));
+else
+    D = spdiags([-ones(N,1) ones(N,1)], [0 1], N,N+1);
+    D(:,end) = [];
+    D(N,N) = 0;
+    Dx = kron(speye(M),D);
+    
+    D = spdiags([-ones(M,1) ones(M,1)], [0 1], M,M+1);
+    D(:,end) = [];
+    D(M,M) = 0;
+    Dy = kron(D,speye(N));
+end
 D = [Dx' Dy']';
 
 ite_irls = 0;
 error = 1;
 
 if (isotropic)
+    eps = 0.01;
     while error > tol        
         ite_irls = ite_irls + 1;
         Dh = Dx*u;
         Dv = Dy*u;
         
         P = Dh.^2 + Dv.^2;
-        eps = 0.01;
         P = 2*sqrt(P.^2 + eps^2);
         P = P.^(-0.5);
         P = P(:).*mask;
@@ -275,20 +290,17 @@ if (isotropic)
         AtA = A'*A;
         [u] = cgs2( AtA + mu*D'*W*D, A'*b, 1e-6 , 20, u );
         
-        G(ite_irls+1,1) = 1/2*(norm( (b - A*u) ))^2 + mu*TVcalc(u,M,N,mask,isotropic);
+        G(ite_irls+1,1) = 1/2*(norm( (b - A*u) ))^2 + mu*TVcalc(u,M,N,mask,isotropic,rowMajor);
         error = abs(G(ite_irls+1) - G(ite_irls));
-        
     end
 
 else
-    % Iteratively reweighted least squares (anisotropic)
+    eps = 0.1;
     while error > tol && ite_irls < 20        
         ite_irls = ite_irls + 1;
         Dh = Dx*u;
         Dv = Dy*u;
-        
-        eps = 0.1;
-        
+
         Px = abs(Dh + eps);
         Px = 1./Px;
         Px = Px(:).*mask;
@@ -306,10 +318,50 @@ else
         AtA = A'*A;
         [u] = cgs2( AtA + mu*Dx'*Wx*Dx + mu*Dy'*Wy*Dy , A'*b, 1e-6 , 20, u );
         
-        G(ite_irls+1,1) = 1/2*(norm( (b - A*u) ))^2 + mu*TVcalc(u,M,N,mask,isotropic);
+        G(ite_irls+1,1) = 1/2*(norm( (b - A*u) ))^2 + mu*TVcalc(u,M,N,mask,isotropic,rowMajor);
         error = abs(G(ite_irls+1) - G(ite_irls));
-        
     end
+end
+
+end
+
+function [TV] = TVcalc(B,M,N,mask,isotropic,rowMajor)
+% Returns the Total Variation
+% Inputs: 
+%       B               vector containing an image
+%       M,N             image size
+%       mask            binary mask of analyzed region
+%       isotropic       true if the TV is isotropic, false if anisotropic
+%       rowMajor        true if the matrix is stored col-major, false if
+%                       stored by rows
+%  
+% Outputs:
+%       TV              number
+%
+% Author: Andres Leonel Coila
+% Modified by Sebastian Merino
+
+mask(isnan(mask)) = 0;
+mask = mask(:);
+
+if rowMajor
+    X = reshape(B,M,N);
+else
+    X = reshape(B,N,M)';
+end
+
+Dh = diff(X,[],1);
+Dh = [Dh;zeros(1,N)];
+Dv = diff(X,[],2);
+Dv = [Dv zeros(M,1)];
+
+if (isotropic)
+    P = Dh.^2 + Dv.^2;
+    P = sqrt(P);
+    TV = norm(P(:).*mask,1);
+else
+    P = abs(Dh) + abs(Dv);
+    TV = norm(P(:).*mask,1);
 end
 
 end
