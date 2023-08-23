@@ -1,7 +1,7 @@
 %% Loading filtered sono signal
 clear, clc
-%baseDir = 'C:\Users\sebas\Documents\MATLAB\Elastography';
-baseDir = 'C:\Users\smerino.C084288\Documents\MATLAB\Datasets';
+baseDir = 'C:\Users\sebas\Documents\MATLAB\Elastography';
+%baseDir = 'C:\Users\smerino.C084288\Documents\MATLAB\Datasets';
 sonoPath = [baseDir,'\heterogeneo_sono'];
 swsRange = [2,8];  
 move = 'left';
@@ -15,10 +15,14 @@ Properties.pitch = 3.0800e-04;
 [Nz,Nx,Nt] = size(sonoFilt);
 x = Properties.Width_S * 1000;
 z = Properties.Depth_S * 1000;
-figure,
-for it = 1:Nt
+figure('Position', [200 200 300 300]);
+for it = 1:5
     imagesc(x,z,sonoFilt(:,:,it),1.5*[-1 1])
     colorbar
+    colormap(sonomap)
+    title('Sonoelastography')
+    xlabel('Lateral position [mm]')
+    ylabel('Depth [mm]')
     axis equal
     axis tight
     pause(1/Properties.FrameRate)
@@ -32,10 +36,14 @@ for ix = 1:Nx
 end
 
 %% Playing subsampled video
-figure,
-for it = 1:Nt
+figure('Position', [200 200 300 300]);
+for it = 1:5
     imagesc(x,z,sonoNew(:,:,it),1.5*[-1 1])
     colorbar
+    colormap(sonomap)
+    title('Sonoelastography subsampled')
+    xlabel('Lateral position [mm]')
+    ylabel('Depth [mm]')
     axis equal
     axis tight
     pause(1/Properties.FrameRate)
@@ -172,7 +180,7 @@ for iz = 1:Nz
     end
 end
 %% Plotting matrices
-figure('Position', [100 100 500 800]), 
+figure('Position', [100 100 500 700]), 
 imagesc(A)
 set(gca,'cLim',[0.04 0.08])
 title('Weight matrix A')
@@ -182,3 +190,26 @@ colorbar
 xlim([1,256])
 ylim([1,500])
 
+%% plotting sono Sub
+[Nz,Nx,Nt] = size(sonoSub);
+dx = 3.0800e-04;
+dz = (Properties.Depth_S(2) - Properties.Depth_S(1))*2;
+x = 1000*(1:Nx)*dx;
+z = 1000*(20:140)*dz;
+
+figure('Position', [100 100 600 400]), 
+imagesc(x,z,sonoSub(:,:,1))
+%set(gca,'cLim',[0.04 0.08])
+title('Sonoelastography ROI')
+xlabel('Lateral position [mm]')
+ylabel('Depth [mm]')
+colorbar
+colormap(sonomap)
+axis equal
+axis tight
+%xlim([1,256])
+%ylim([1,500])
+
+
+%%
+save data360Hz.mat A B sonoSub -v7.3
