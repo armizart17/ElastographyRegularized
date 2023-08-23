@@ -1,10 +1,12 @@
-function [TV] = TVcalc(B,M,N,mask,isotropic)
-% Returns the Total Variation (isotropic)
+function [TV] = TVcalc(B,M,N,mask,isotropic,colMajor)
+% Returns the Total Variation
 % Inputs: 
 %       B               vector containing an image
 %       M,N             image size
 %       mask            binary mask of analyzed region
 %       isotropic       true if the TV is isotropic, false if anisotropic
+%       colMajor        true if the matrix is stored col-major, false if
+%                       stored by rows
 %  
 % Outputs:
 %       TV              number
@@ -12,11 +14,15 @@ function [TV] = TVcalc(B,M,N,mask,isotropic)
 % Author: Andres Leonel Coila
 % Modified by Sebastian Merino
 
-
 mask(isnan(mask)) = 0;
 mask = mask(:);
 
-X = reshape(B,M,N);
+if colMajor
+    X = reshape(B,M,N);
+else
+    X = reshape(B,N,M)';
+end
+
 Dh = diff(X,[],1);
 Dh = [Dh;zeros(1,N)];
 Dv = diff(X,[],2);

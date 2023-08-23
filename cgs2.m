@@ -21,7 +21,6 @@ p = -r;
 ite_cgs = 0;
 
 while norm(r,2) > tol && ite_cgs < maxit
-    
     alpha = (r'*r)/(p'*(A*p));
     x = x + alpha*p;
     rn = r + alpha*(A*p);
@@ -29,6 +28,7 @@ while norm(r,2) > tol && ite_cgs < maxit
     p = -rn + beta*p;
     r = rn;
     ite_cgs = ite_cgs + 1;
+    %fprintf("CGS iteration %d\n",ite_cgs);
 end
 
 end
