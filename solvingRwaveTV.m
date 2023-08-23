@@ -1,6 +1,7 @@
 clear, clc
+addpath('./RegularizationFunctions/',"./ElastographyFunctions")
 load data360Hz.mat
-%%
+%% Testing function on site
 b = B;
 mu = 1;
 [M,N,~] = size(sonoSub);
@@ -90,12 +91,12 @@ else
         error = abs(G(ite_irls+1) - G(ite_irls));
     end
 end
-%% Error in time
+%% Error per iteration
 figure('Position', [200 200 500 500]);
 plot(G)
 xlabel("# of iterations")
 ylabel("Error")
-%% 
+%%  Displaying and comparing results
 baseDir = 'C:\Users\sebas\Documents\MATLAB\Elastography';
 sonoPath = [baseDir,'\heterogeneo_sono'];
 

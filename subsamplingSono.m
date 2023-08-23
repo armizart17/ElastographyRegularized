@@ -1,5 +1,6 @@
 %% Loading filtered sono signal
 clear, clc
+addpath('./RegularizationFunctions/',"./ElastographyFunctions")
 baseDir = 'C:\Users\sebas\Documents\MATLAB\Elastography';
 %baseDir = 'C:\Users\smerino.C084288\Documents\MATLAB\Datasets';
 sonoPath = [baseDir,'\heterogeneo_sono'];
