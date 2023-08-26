@@ -5,15 +5,16 @@ load data360Hz.mat
 b = B;
 mu = 1;
 [M,N,~] = size(sonoSub);
-tol = 1e-1;
+tol = 1e-3;
 mask = ones(M*N,1);
 isotropic = true;
 colMajor = false;
-
+tic
 AtA = A'*A; % This takes A LOT OF TIME
 Atb = A'*b;
-    
+toc
 [u,~] = cgs2(AtA,Atb,1e-6,20);
+
 G(1) = 1/2*(norm( (b - A*u) ))^2 + mu*TVcalc(u,M,N,mask,isotropic,colMajor);
 
 if colMajor
@@ -61,7 +62,7 @@ if (isotropic)
         [u,~] = cgs2( AtA + mu*D'*W*D, Atb, tol , 20, u );
         
         G(ite_irls+1,1) = 1/2*(norm( (b - A*u) ))^2 + mu*TVcalc(u,M,N,mask,isotropic,colMajor);
-        error = abs(G(ite_irls+1) - G(ite_irls));
+        error = abs(G(ite_irls+1) - G(ite_irls))/G(ite_irls+1);
     end
 
 else
@@ -137,3 +138,124 @@ ylim([z(1) z(end)]), ylabel('z [mm]')
 title('SWS from Tikhonov Reg')
 ax = gca; ax.FontSize = 12;
 
+%% Looping for reg parameter
+dataPath = 'C:\Users\sebas\Documents\MATLAB\DataProCiencia\Elastrography\TV\muData\';
+b = B;
+muArray = logspace(-2,2,20);
+[M,N,~] = size(sonoSub);
+tol = 1e-1;
+mask = ones(M*N,1);
+isotropic = true;
+colMajor = false;
+
+for iMu = 1:length(muArray)
+    mu = muArray(iMu);
+    [u,G] = IRLS_TV(b,A,mu,M,N,tol,mask,isotropic,colMajor);
+    swsTV = reshape(u,N,M)';
+    save([dataPath,num2str(iMu),'.mat'],'swsTV','G','mu');
+end
+
+%% Getting figures for each reg parameter
+muArray = logspace(-2,2,20);
+figurePath = 'C:\Users\sebas\Documents\MATLAB\DataProCiencia\Elastrography\TV\muFigures\';
+for iMu = 1:20
+    load([dataPath,num2str(iMu),'.mat']);
+    figure('Position', [200 200 400 500]);
+    subplot(211),
+    imagesc(x,z,swsTV,SWS_im_range);
+    colormap turbo
+    colorbar
+    axis equal
+    xlim([x(1) x(end)]), xlabel('x [mm]')
+    ylim([z(1) z(end)]), ylabel('z [mm]')
+    title(['SWS from TV, \mu=',num2str(mu,2)])
+    ax = gca; ax.FontSize = 12;
+    
+    subplot(212)
+    plot(G)
+    xlabel("# of iterations")
+    ylabel("Error")
+    title('Convergence of error')
+    grid on
+    axis tight
+    ax = gca; ax.FontSize = 12;
+    saveas(gcf,[figurePath,num2str(iMu),'.png'])
+end
+
+%% Selecting ROI
+load([dataPath,num2str(13),'.mat']);
+x0inc = 16; z0 = 12; L = 11; x0back = 1.5;
+
+imagesc(x,z,swsTV,SWS_im_range);
+colormap turbo
+colorbar
+axis equal
+hold on
+rectangle('Position',[x0inc z0 L L], 'LineWidth',2),
+rectangle('Position',[x0back z0 L L], 'LineWidth',2, 'EdgeColor','w'),
+hold off
+xlim([x(1) x(end)]), xlabel('x [mm]')
+ylim([z(1) z(end)]), ylabel('z [mm]')
+title(['SWS from TV, \mu=',num2str(mu,2)])
+ax = gca; ax.FontSize = 12;
+
+%% Calculating CNR
+[X,Z] = meshgrid(x,z);
+maskInc = (X>x0inc & X<x0inc+L & Z>z0 & Z<z0+L);
+maskBack = (X>x0back & X<x0back+L & Z>z0 & Z<z0+L);
+cnrArray = zeros(1,20);
+meanInc = zeros(1,20);
+meanBack = zeros(1,20);
+stdInc = zeros(1,20);
+stdBack = zeros(1,20);
+for iMu = 1:20
+    load([dataPath,num2str(iMu),'.mat']);
+    swsInc = swsTV(maskInc);
+    swsBack = swsTV(maskBack);
+    cnrArray(iMu) = 2*(mean(swsBack) - mean(swsInc))^2 / ...
+        (var(swsInc) + var(swsBack));
+    meanInc(iMu) = mean(swsInc);
+    meanBack(iMu) = mean(swsBack);
+    stdInc(iMu) = std(swsInc);
+    stdBack(iMu) = std(swsBack);  
+end
+figure,
+semilogx(muArray,cnrArray,'o-')
+ylabel('CNR'), xlabel('mu')
+%% SWS values for each mu
+figure,
+errorbar(muArray,meanBack,stdBack, 'LineWidth',2)
+hold on
+errorbar(muArray,meanInc,stdInc, 'LineWidth',2)
+hold off
+ax = gca;
+ax.XScale = "log";
+legend({'Back','Inc'})
+ylabel('SWS [m/s]'), xlabel('mu')
+
+%% Testing anisotropic
+mu = 10;
+tol = 1e-3;
+isotropic = false;
+[u,G] = IRLS_TV(b,A,mu,M,N,tol,mask,isotropic,colMajor);
+swsTV = reshape(u,N,M)';
+figure('Position', [200 200 400 500]);
+subplot(211),
+imagesc(x,z,swsTV,SWS_im_range);
+colormap turbo
+colorbar
+axis equal
+xlim([x(1) x(end)]), xlabel('x [mm]')
+ylim([z(1) z(end)]), ylabel('z [mm]')
+title(['SWS from TV, \mu=',num2str(mu,2)])
+ax = gca; ax.FontSize = 12;
+
+subplot(212)
+plot(G)
+xlabel("# of iterations")
+ylabel("Error")
+title('Convergence of error')
+grid on
+axis tight
+ax = gca; ax.FontSize = 12;
+saveas(gcf,[figurePath,num2str(iMu),'.png'])

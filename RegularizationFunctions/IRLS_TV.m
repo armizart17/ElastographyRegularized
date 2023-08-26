@@ -1,5 +1,5 @@
 % Total Variation: 0.5*||A*u(:)-b||_2^2 + lambda*TV(u)
-function u = IRLS_TV(b,A,mu,M,N,tol,mask,isotropic,colMajor)
+function [u,C] = IRLS_TV(b,A,mu,M,N,tol,mask,isotropic,colMajor)
 % Returns the Total Variation
 % Inputs: 
 %       b               vector containing measurements
@@ -14,6 +14,7 @@ function u = IRLS_TV(b,A,mu,M,N,tol,mask,isotropic,colMajor)
 %  
 % Outputs:
 %       u               vector of image samples, size MN
+%       G               vector containing cost function for each iteration
 %
 % Author: Andres Leonel Coila
 % Modified by Sebastian Merino
@@ -22,29 +23,9 @@ AtA = A'*A; % This takes A LOT OF TIME
 Atb = A'*b;
     
 [u,~] = cgs2(AtA,Atb,1e-6,20);
-G(1) = 1/2*(norm( (b - A*u) ))^2 + mu*TVcalc(u,M,N,mask,isotropic,colMajor);
+C(1) = 1/2*(norm( (b - A*u) ))^2 + mu*TVcalc(u,M,N,mask,isotropic,colMajor);
 
-if colMajor
-    D = spdiags([-ones(M,1) ones(M,1)], [0 1], M,M+1);
-    D(:,end) = [];
-    D(M,M) = 0;
-    Dx = kron(speye(N),D);
-    
-    D = spdiags([-ones(N,1) ones(N,1)], [0 1], N,N+1);
-    D(:,end) = [];
-    D(N,N) = 0;
-    Dy = kron(D,speye(M));
-else
-    D = spdiags([-ones(N,1) ones(N,1)], [0 1], N,N+1);
-    D(:,end) = [];
-    D(N,N) = 0;
-    Dx = kron(speye(M),D);
-    
-    D = spdiags([-ones(M,1) ones(M,1)], [0 1], M,M+1);
-    D(:,end) = [];
-    D(M,M) = 0;
-    Dy = kron(D,speye(N));
-end
+[Dx,Dy] = diffOperator(M,N,colMajor);
 D = [Dx' Dy']';
 
 ite_irls = 0;
@@ -67,14 +48,14 @@ if (isotropic)
         W = kron(speye(2),omega);
         [u,~] = cgs2( AtA + mu*D'*W*D, Atb, tol , 20, u );
         
-        G(ite_irls+1,1) = 1/2*(norm( (b - A*u) ))^2 + mu*TVcalc(u,M,N,mask,isotropic,colMajor);
-        error = abs(G(ite_irls+1) - G(ite_irls));
+        C(ite_irls+1,1) = 1/2*(norm( (b - A*u) ))^2 + mu*TVcalc(u,M,N,mask,isotropic,colMajor);
+        error = abs(C(ite_irls+1) - C(ite_irls))/C(ite_irls+1);
     end
 
 else
-    while error > tol && ite_irls < 30        
+    while error > tol && ite_irls < 1000        
         ite_irls = ite_irls + 1;
-        %fprintf("IRLS iteration %d\n",ite_irls);
+        fprintf("IRLS iteration %d\n",ite_irls);
         Dh = Dx*u;
         Dv = Dy*u;
 
@@ -94,7 +75,37 @@ else
         
         [u] = cgs2( AtA + mu*Dx'*Wx*Dx + mu*Dy'*Wy*Dy , Atb, tol, 20, u );
         
-        G(ite_irls+1,1) = 1/2*(norm( (b - A*u) ))^2 + mu*TVcalc(u,M,N,mask,isotropic,colMajor);
-        error = abs(G(ite_irls+1) - G(ite_irls));
+        C(ite_irls+1,1) = 1/2*(norm( (b - A*u) ))^2 + mu*TVcalc(u,M,N,mask,isotropic,colMajor);
+        error = abs(C(ite_irls+1) - C(ite_irls))/C(ite_irls+1);
     end
+end
+
+end
+
+function [Dx,Dy] = diffOperator(M,N,colMajor)
+% Returns differential operators
+% Inputs: 
+%       M,N             image size
+%       colMajor        true if the matrix is stored col-major, false if
+%                       stored row-major
+%  
+% Outputs:
+%       Dx,Dy           Difference operators
+% Author: Sebastian Merino
+if ~colMajor
+    foo = M;
+    M = N;
+    N = foo;
+end
+
+G = spdiags([-ones(M,1) ones(M,1)], [0 1], M,M+1);
+G(:,end) = [];
+G(M,M) = 0;
+Dx = kron(speye(N),G);
+
+G = spdiags([-ones(N,1) ones(N,1)], [0 1], N,N+1);
+G(:,end) = [];
+G(N,N) = 0;
+Dy = kron(G,speye(M));
+
 end

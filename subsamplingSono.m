@@ -7,6 +7,9 @@ sonoPath = [baseDir,'\heterogeneo_sono'];
 swsRange = [2,8];  
 move = 'left';
 
+% Colormap
+load('MyColormaps.mat')
+
 % Pre-processing
 load([sonoPath, '\Image9\sono.mat']);
 Properties.pitch = 3.0800e-04;
@@ -74,9 +77,9 @@ RW_Param.alpha=2;
 tic
 SWSsub = rWave2(sonoNew2,Properties,RW_Param);
 toc
-tic
-SWS = rWave2(sonoFilt,Properties,RW_Param);
-toc
+%tic
+%SWS = rWave2(sonoFilt,Properties,RW_Param);
+%toc
 %% Comparing results
 SWS_im_range = [2 5.5];
 x = 1000*Properties.Width_S;
@@ -110,11 +113,12 @@ clear sono sonoNew2 sonoNew sonoFilt
 [Nz,Nx,Nt] = size(sonoSub);
 %iz = floor(Nz/2);
 B = [];
-A = [];
+A = sparse(1,1);
 for iz = 1:Nz
-    Az = zeros(1,Nx); % Weight matrix for line iz
-    n=1;
-    for frame = 1:size(sonoSub,3)
+    fprintf("Line %d\n",iz);
+    Az = sparse(1,Nx); % Weight matrix for line iz
+    n = 1;
+    for frame = 1:Nt
         % Finding indices for each peak in each line (1x128)
         sonoLine = squeeze(sonoSub(iz,:,frame));
         [iPeaks] = peakfinder(sonoLine/max(sonoLine(:)),0);
@@ -177,7 +181,7 @@ for iz = 1:Nz
     if iz == 1
         A = Az;
     else
-        A = [A zeros(size(A,1),Nx);zeros(size(Az,1),Nx*(iz-1)),Az];
+        A = [A sparse(size(A,1),Nx);sparse(size(Az,1),Nx*(iz-1)),Az];
     end
 end
 %% Plotting matrices

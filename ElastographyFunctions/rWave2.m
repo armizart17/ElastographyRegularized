@@ -25,11 +25,11 @@
 function WA = rWave2(sono_filt,Prop,RW_Param)
 WA = zeros(size(sono_filt,1),size(sono_filt,2));
 
-for depth=1:size(sono_filt,1)
+for depth = 1:size(sono_filt,1)
     clear B;
-    A = zeros(1,size(sono_filt,2));
-    n=1;
-    for frame=1:size(sono_filt,3)
+    A = sparse(1,size(sono_filt,2));
+    n = 1;
+    for frame = 1:size(sono_filt,3)
         % Finding indices for each peak in each line (1x128)
         sonoLine = squeeze(sono_filt(depth,:,frame));
         [iPeaks] = peakfinder(sonoLine/max(sonoLine(:)),0);
@@ -93,7 +93,7 @@ end
 
 end
 %%
-function [x,discr,cost]=itreg(A,B,RW_Param)
+function x = itreg(A,B,RW_Param)
 
 % Choice of regularization function (Tikhonov matrix)
 switch (RW_Param.operator)
@@ -104,15 +104,15 @@ switch (RW_Param.operator)
         L(end,:)=0;
 end
 
-B=B';
-x0=zeros(size(A,2),1);
-err=1;
+B = B';
+x0 = zeros(size(A,2),1);
+err = 1;
 while err > RW_Param.tolerance
     Lx = L*x0;
     W = diag( RW_Param.k/2*( abs(Lx.^2+RW_Param.beta).^(RW_Param.k/2 - 1) ) );
     x = ((A'*A+RW_Param.alpha^2 *L'*W*L)\A') *B;
-    err=norm(x-x0)^2/norm(x)^2; 
-    x0=x;
+    err = norm(x-x0)^2/norm(x)^2; 
+    x0 = x;
 end
 
 end
