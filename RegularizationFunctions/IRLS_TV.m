@@ -34,7 +34,7 @@ eps = 0.01; % 0.01 for isotropic is ok
 if (isotropic)
     while error > tol        
         ite_irls = ite_irls + 1;
-        fprintf("IRLS iteration %d\n",ite_irls);
+        %fprintf("IRLS iteration %d\n",ite_irls);
 
         Dh = Dx*u;
         Dv = Dy*u;
@@ -55,7 +55,7 @@ if (isotropic)
 else
     while error > tol && ite_irls < 1000        
         ite_irls = ite_irls + 1;
-        fprintf("IRLS iteration %d\n",ite_irls);
+        %fprintf("IRLS iteration %d\n",ite_irls);
         Dh = Dx*u;
         Dv = Dy*u;
 

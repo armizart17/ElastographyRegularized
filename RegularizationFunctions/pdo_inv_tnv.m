@@ -1,11 +1,11 @@
-function [x, cost, error, fide, regul] = pdo_inv_tnv(Y, A, lambda, tau, maxIter, tol, numberEstimators, stableIter)
-% function [x, cost, error, fide, regul] = pdo_inv_tnv(Y, A, lambda, tau, maxIter, tol, numberEstimators, stableIter)
+function [x, cost, error, fide, regul] = pdo_inv_tnv(y, H, W, A, lambda, tau, maxIter, tol, numberEstimators, stableIter)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % DESCRIPTION: Primal DualSpliting Optimization Method for linear inverse problem A*x = y 
 % Cost function to minimize: arg min || Ax - y ||_2^2 + TNV (x)
 % This was programmed to solve linear problems for images, i.e 2D or even 2D multichannel images
 % INPUTS
-%	- Y		: Observed data (Array form)
+%	- y		: Observed data (vector form)
+%   - H,W   : Image dimensions
 %	- A		: Linear operator (Array form, matrix)
 % 	- lambda: regularization parameter (try powers of 10 for linear inverse problem)
 % 	- tau	: second hyperparameter for proximal operators, apply grid search i.e. 0.1 0.01, 0.001
@@ -36,46 +36,46 @@ function [x, cost, error, fide, regul] = pdo_inv_tnv(Y, A, lambda, tau, maxIter,
 	rho = 1.99;		% relaxation parameter, in [1,2]
 	sigma = 1/tau/8; % proximal parameter
 
-    global H W C numEstim
-    [H,W,C]=size(Y);
     numEstim = numberEstimators;
 
-    y = Y(:);
     At = A';
     AtA = At*A;
-
+    
     [~,n] = size(A);
-    
-    izq = sparse(eye(n)) + tau*(AtA);
+    tic
+    izq = speye(n) + tau*(AtA);
     inv_izq = ( izq )^-1;
-    
+    t = toc;
+    fprintf("Inversion inicial: %f\n",t);
+
+    tic
 	% INITIALIZATION OPTIONS TO HELP THE REGULARIZATION
-    x_ini = (A'*A)\(A'*y);% QR solver 
-    % x_ini = cgs(A'*A, A'*y);    % CGS solver 
+    % x_ini = (A'*A)\(A'*y);% QR solver 
+    x_ini = cgs2(AtA, A'*y);    % CGS solver 
     % x_ini = zeros([H, W, numEstim]); % zeros initialization
-    
+    t = toc;
+    fprintf("Inicializacion de x: %f\n",t);
     
     % FAST IMPLEMENTATION FOR CC channels
     x2 = reshape(x_ini, [H,W,numEstim]); % 2 for SLD
-   
     %x2(:,:,1) = Y( :,:,floor(C/2) ); % 1st estimator
 
     u2 = zeros([size(x2) 2]);
 
 	ee = 1;	
-    error(1) = 1;
+    error(1) = NaN;
     iter = 1;
-    cost(1) = 100;
-    fide(1) = 1;
-    regul(1) = 1;
+    fide(1) = 0.5*sum((A*x2(:) - y).^2);
+    regul(1) = lambda*TVnuclear_EMZ(x2);
+    cost(1) = fide(1) + regul(1);
    
     disp('Itn   |    Cost   |   Delta(Cost)');
     disp('----------------------------------');
     
 
-    while (iter < maxIter) && (ee > tol)    
+    while (iter < maxIter)  
         % Data fidelity
-        x = prox_tau_f_generic(x2-tau*opDadj(u2),Y,tau, inv_izq, At);
+        x = prox_tau_f_generic(x2-tau*opDadj(u2),y,tau, inv_izq, At);
 		
         % Reg
         u = prox_sigma_g_conj(u2+sigma*opD(2*x-x2), lambda);
@@ -83,7 +83,7 @@ function [x, cost, error, fide, regul] = pdo_inv_tnv(Y, A, lambda, tau, maxIter,
 		x2 = x2 + rho*(x-x2);
 		u2 = u2 + rho*(u-u2);
        
-        fide(iter+1) = 0.5*sum(sum(sum((reshape(A*x(:), size(Y)) - Y).^2)));
+        fide(iter+1) = 0.5*sum((A*x(:) - y).^2);
         regul(iter+1) = +lambda*TVnuclear_EMZ(x); 
         cost(iter+1) = fide(iter+1) + regul(iter+1);
 
@@ -91,14 +91,14 @@ function [x, cost, error, fide, regul] = pdo_inv_tnv(Y, A, lambda, tau, maxIter,
         % error(iter+1) = ee;               % NO NORMALIZED
         error(iter+1) = ee / cost(iter+1);  % NORMALIZED
         
-        if (iter < stableIter) % en las primeras 100 iteraciones inestable 
-            ee = 1; % poner error grande (cualquier valor) para que no pare iteracion            
-        end
-        
         if mod(iter,5)==0 % to print every 5 iterations
             % primalcost = 0.5* norm(A*x(:) - y,2).^2 + lambda*TVnuclear_EMZ(x);         
             fprintf('%4d  | %f | %e\n',iter, cost(iter+1), error(iter+1));
         end
+        if (iter > stableIter && error(iter+1)<tol) % en las primeras 100 iteraciones inestable 
+            break;
+        end
+
         iter = iter+1;
     end
 return
@@ -112,7 +112,7 @@ return
 % Outputs:      
 %   u_3d        Next iteration multichannel image
 function [u_3d] = prox_tau_f_generic(v, B, tau, inv_izq, At)
-    global H W C numEstim;
+    [H,W,numEstim] = size(v);
     der = v(:)+tau*At*B(:);
     u = ( inv_izq )* ( der );
     u_3d = reshape(u, [H W numEstim]); % reshape as image

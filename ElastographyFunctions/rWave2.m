@@ -92,9 +92,8 @@ for depth = 1:size(sono_filt,1)
 end
 
 end
-%%
+%% Utility functions
 function x = itreg(A,B,RW_Param)
-
 % Choice of regularization function (Tikhonov matrix)
 switch (RW_Param.operator)
     case 'I'        % Penalizing greater SWS values
