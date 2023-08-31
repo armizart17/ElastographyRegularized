@@ -99,21 +99,24 @@ fig3 = figure('Position',[100 100 1000 500]);
 t3 = tiledlayout(fig3,3,3);
 for iIm = 1:Nim
     load([sonoPath,'\',num2str(iIm),'.mat'])
+    load([swsPath,'\',num2str(iIm),'.mat']);
+
     fprintf("\nVibration Frequency = %d Hz\n",Properties.VibFreq);
     [swsTV,C] = calculateSWSTV(sono,Properties,ParamsTV);
     fprintf("Number of iterations: %d\n",length(C));
+    % 
+    % tic
+    % swsRW = rWave2(sono,Properties,RW_Param);
+    % t = toc;
+    % fprintf('Exec. time for R-W: %f\n',t)
+    % 
+    % tic
+    % swsCWT = process_CWT(sono,Properties,[1 16]);
+    % t = toc;
+    % fprintf('Exec. time for CWT: %f\n',t)
     
-    tic
-    swsRW = rWave2(sono,Properties,RW_Param);
-    t = toc;
-    fprintf('Exec. time for R-W: %f\n',t)
-
-    tic
-    swsCWT = process_CWT(sono,Properties,[1 16]);
-    t = toc;
-    fprintf('Exec. time for CWT: %f\n',t)
-    
-    save([swsPath,'\',num2str(iIm),'.mat'],'swsTV','C','swsRW','swsCWT');
+    save([swsPath,'\',num2str(iIm),'.mat'],...
+        'swsTV','C','swsRW','swsCWT','Properties');
 
     % Selecting ROI
     x = Properties.Width_S*1000;
@@ -277,7 +280,7 @@ title('CWT')
 %% --------------------------------------------------------------------- %%
 %% TOTAL NUCLEAR VARIATION
 Nim = 9;
-for iIm = 1:2:Nim
+for iIm = 1:Nim
     % Loading
     load([sonoPath,'\',num2str(iIm),'.mat'])
     [Nz,Nx,~] = size(sono);
@@ -310,61 +313,275 @@ for iIm = 1:2:Nim
     fprintf('Exec. time for merging the systems: %f\n',t)
 end
 %% Algorithm
-lambda = 0.5;
-tau = 0.1;
+% larger tau increases num of iterations and makes the results less
+% dependendent on lambda
+% smaller tau increases agreement between channels
+lambda = 5; % +-50%
+tau = 0.5;   % +-50%
 maxIter = 1000;
-tol = 1e-4;
-numberEstimators = 5;
+tol = 3e-4;
 stableIter = 50;
 [u, cost, error, fide, regul] = pdo_inv_tnv(B, Nz, Nx, A, ...
-    lambda, tau, maxIter, tol, numberEstimators, stableIter);
-swsTVN = reshape(u,Nz,Nx,numberEstimators);
+    lambda, tau, maxIter, tol, Nim, stableIter);
+swsTNV = reshape(u,Nz,Nx,Nim);
+save([swsPath,'\TNV.mat'],'swsTNV');
 
-%% Cost
-sws1 = squeeze(swsTVN(:,:,1));
-sws2 = squeeze(swsTVN(:,:,5));
+%% Results
+load([swsPath,'\TNV.mat'],'swsTNV');
 x = Properties.Width_S * 1000;
-z = Properties.Width_S * 1000;
+z = Properties.Depth_S * 1000;
 SWS_im_range = [2,6];
+VibFreqArray = 200:20:360;
 
-figure('Position',[100 100 800 500])
-subplot(2,2,1)
-imagesc(x,z,sws1,SWS_im_range);
-colormap turbo
-colorbar
-axis equal
-xlim([x(1) x(end)]), xlabel('x [mm]')
-ylim([z(1) z(end)]), ylabel('z [mm]')
-title(['SWS from TVN, \lambda=',num2str(lambda,2)])
-ax = gca; ax.FontSize = 12;
+figure('Position',[100 100 1200 600]);
+t = tiledlayout(3,3);
+for iIm = 1:Nim
+    nexttile
+    imagesc(x,z,squeeze(swsTNV(:,:,iIm)),SWS_im_range);
+    colormap turbo
+    colorbar
+    axis equal
+    xlim([x(1) x(end)]), xlabel('x [mm]')
+    ylim([z(1) z(end)]), ylabel('z [mm]')
+    title(['F_v = ',num2str(VibFreqArray(iIm)),' Hz'])
+    ax = gca; ax.FontSize = 12;
+end
+title(t,['SWS from TNV, \lambda=',num2str(lambda,2),...
+    ', \tau=',num2str(tau,2)])
 
-subplot(2,2,3)
-imagesc(x,z,sws2,SWS_im_range);
-colormap turbo
-colorbar
-axis equal
-xlim([x(1) x(end)]), xlabel('x [mm]')
-ylim([z(1) z(end)]), ylabel('z [mm]')
-title(['SWS from TVN, \lambda=',num2str(lambda,2)])
-ax = gca; ax.FontSize = 12;
-
-%%
-subplot(2,2,1)
-plot(cost)
+figure,
+t = tiledlayout(2,2);
+nexttile, plot(cost, 'LineWidth',1.5)
 title('Cost function')
-
-subplot(2,2,2)
-plot(error)
+xlim([0 120])
+nexttile, plot(error, 'LineWidth',1.5)
 title('Relative error')
-
-subplot(2,2,3)
-plot(fide)
+xlim([0 120])
+nexttile, plot(fide, 'LineWidth',1.5)
 title('Fidelity term')
-
-subplot(2,2,4)
-plot(regul)
+xlim([0 120])
+nexttile, plot(regul, 'LineWidth',1.5)
 title('Regularization term')
+xlim([0 120])
+title(t,['Iterations, \lambda=',num2str(lambda,2),...
+    ', \tau=',num2str(tau,2)])
 
+%% Selecting ROI
+swsPath = 'C:\Users\sebas\Documents\MATLAB\DataProCiencia\Elastrography\TV\sws';
+load([swsPath,'\1.mat']);
+x0inc = 15; z0 = 11; L = 11; x0back = 1.5;
+figure, 
+imagesc(Properties.Width_B*1000,Properties.Depth_B*1000,...
+    Properties.Bmode); colormap gray
+colorbar
+axis equal
+hold on
+rectangle('Position',[x0inc z0 L L], 'LineWidth',2),
+rectangle('Position',[x0back z0 L L], 'LineWidth',2, 'EdgeColor','w'),
+hold off
+xlim([x(1) x(end)]), xlabel('x [mm]')
+ylim([z(1) z(end)]), ylabel('z [mm]')
+title('B-mode ROI')
+ax = gca; ax.FontSize = 12;
+
+%% Calculating CNR
+VibFreqArray = 200:20:360;
+[X,Z] = meshgrid(Properties.Width_S*1000,Properties.Depth_S*1000);
+maskInc = (X>x0inc & X<x0inc+L & Z>z0 & Z<z0+L);
+maskBack = (X>x0back & X<x0back+L & Z>z0 & Z<z0+L);
+
+cnrTV = zeros(1,Nim);
+cnrRW = zeros(1,Nim);
+cnrTNV = zeros(1,Nim);
+
+meanIncTV = zeros(1,Nim);
+meanBackTV = zeros(1,Nim);
+stdIncTV = zeros(1,Nim);
+stdBackTV = zeros(1,Nim);
+
+meanIncRW = zeros(1,Nim);
+meanBackRW = zeros(1,Nim);
+stdIncRW = zeros(1,Nim);
+stdBackRW = zeros(1,Nim);
+
+meanIncTNV = zeros(1,Nim);
+meanBackTNV = zeros(1,Nim);
+stdIncTNV = zeros(1,Nim);
+stdBackTNV = zeros(1,Nim);
+for iIm = 1:Nim
+    load([swsPath,'\',num2str(iIm),'.mat']);
+
+    swsInc = swsTV(maskInc);
+    swsBack = swsTV(maskBack);
+    cnrTV(iIm) = 2*(mean(swsBack) - mean(swsInc))^2 / ...
+        (var(swsInc) + var(swsBack));
+    meanIncTV(iIm) = mean(swsInc);
+    meanBackTV(iIm) = mean(swsBack);
+    stdIncTV(iIm) = std(swsInc);
+    stdBackTV(iIm) = std(swsBack);  
+
+    swsInc = swsRW(maskInc);
+    swsBack = swsRW(maskBack);
+    cnrRW(iIm) = 2*(mean(swsBack) - mean(swsInc))^2 / ...
+        (var(swsInc) + var(swsBack));
+    meanIncRW(iIm) = mean(swsInc);
+    meanBackRW(iIm) = mean(swsBack);
+    stdIncRW(iIm) = std(swsInc);
+    stdBackRW(iIm) = std(swsBack); 
+
+    swsTNVchannel = swsTNV(:,:,iIm);
+    swsInc = swsTNVchannel(maskInc);
+    swsBack = swsTNVchannel(maskBack);
+    cnrTNV(iIm) = 2*(mean(swsBack) - mean(swsInc))^2 / ...
+        (var(swsInc) + var(swsBack));
+    meanIncTNV(iIm) = mean(swsInc);
+    meanBackTNV(iIm) = mean(swsBack);
+    stdIncTNV(iIm) = std(swsInc);
+    stdBackTNV(iIm) = std(swsBack); 
+end
+%% Comparing CNR
+figure('Position', [100 100 600 400]),
+plot(VibFreqArray,db(cnrRW),'o-', 'LineWidth',2)
+hold on
+plot(VibFreqArray,db(cnrTV),'o-', 'LineWidth',2)
+plot(VibFreqArray,db(cnrTNV),'o-', 'LineWidth',2)
+hold off
+legend({'R-WAVE','TV','TNV'}, 'Location','northwest');
+ylabel('CNR [dB]'), xlabel('F_v')
+grid on
+xlim([180 380])
+
+%% Comparing mean SWS and std
+figure('Position', [100 100 400 400]),
+tiledlayout(1,3)
+nexttile
+errorbar(VibFreqArray,meanBackRW,stdBackRW, 'LineWidth',2)
+hold on
+errorbar(VibFreqArray,meanIncRW,stdIncRW, 'LineWidth',2)
+hold off
+legend({'Back','Inc'})
+ylabel('SWS [m/s]'), xlabel('Vibration frequency [Hz]')
+grid on
+xlim([180 380])
+title('R-WAVE')
+
+nexttile
+errorbar(VibFreqArray,meanBackTV,stdBackTV, 'LineWidth',2)
+hold on
+errorbar(VibFreqArray,meanIncTV,stdIncTV, 'LineWidth',2)
+hold off
+legend({'Back','Inc'})
+ylabel('SWS [m/s]'), xlabel('Vibration frequency [Hz]')
+grid on
+xlim([180 380])
+title('Total Variation')
+
+nexttile
+errorbar(VibFreqArray,meanBackTNV,stdBackTNV, 'LineWidth',2)
+hold on
+errorbar(VibFreqArray,meanIncTNV,stdIncTNV, 'LineWidth',2)
+hold off
+legend({'Back','Inc'})
+ylabel('SWS [m/s]'), xlabel('Vibration frequency [Hz]')
+grid on
+xlim([180 380])
+title('TNV')
+
+%% Comparing lateral profile
+iz = 70;
+freqArr = 200:20:360;
+for iIm = 1:Nim
+    load([swsPath,'\',num2str(iIm),'.mat']);
+    x = Properties.Width_S*1000;
+    lineRW = swsRW(iz,:);
+    lineTV = swsTV(iz,:);
+    lineTNV = swsTNV(iz,:,iIm);
+
+    figure('Position', [100 100 600 250]),
+    plot(x,lineRW, 'LineWidth',1.5)
+    hold on
+    plot(x,lineTV, 'LineWidth',1.5)
+    plot(x,lineTNV, 'LineWidth',1.5)
+    hold off
+    legend({'RW','TV','TNV'})
+    axis tight
+    ylim([3 5.5])
+    zi = Properties.Depth_S(iz)*1000;
+    title(['Lateral profile at z=',num2str(zi,2),'mm, f_v=',...
+        num2str(freqArr(iIm)),'Hz'])
+end
+%% Comparing axial profile
+ix = 80;
+freqArr = 200:20:360;
+for iIm = 1:Nim
+    load([swsPath,'\',num2str(iIm),'.mat']);
+    z = Properties.Depth_S*1000;
+    lineRW = swsRW(:,ix);
+    lineTV = swsTV(:,ix);
+    lineTNV = swsTNV(:,ix,iIm);
+
+    figure('Position', [100 100 600 250]),
+    plot(z,lineRW, 'LineWidth',1.5)
+    hold on
+    plot(z,lineTV, 'LineWidth',1.5)
+    plot(z,lineTNV, 'LineWidth',1.5)
+    hold off
+    legend({'RW','TV','TNV'})
+    axis tight
+    ylim([3 6])
+    xi = Properties.Width_S(ix)*1000;
+    title(['Axial profile at x=',num2str(xi,2),'mm, f_v=',...
+        num2str(freqArr(iIm)),'Hz'])
+end
+
+%% Comparing lateral resolution
+iz = 70;
+ix0 = 23; ixf = 80;
+%ix0 = 23; ixf = 110;
+ix0n = 70; ixfn = 110;
+freqArr = 200:20:360;
+fwhmRW = zeros(1,Nim);
+fwhmTV = zeros(1,Nim);
+fwhmTNV = zeros(1,Nim);
+
+figure('Position', [100 100 1200 600]),
+tiledlayout(3,3)
+for iIm = 1:Nim
+    load([swsPath,'\',num2str(iIm),'.mat']);
+    x = Properties.Width_S(ix0:ixf-1)*1000;
+    lineRW = diff(swsRW(iz,ix0:ixf));
+    lineTV = diff(swsTV(iz,ix0:ixf));
+    lineTNV = diff(swsTNV(iz,ix0:ixf,iIm));
+    lineRWneg = diff(swsRW(iz,ix0n:ixfn));
+    lineTVneg = diff(swsTV(iz,ix0n:ixfn));
+    lineTNVneg = diff(swsTNV(iz,ix0n:ixfn,iIm));
+    fwhmRW(iIm) = fwhm(x,lineRW) + fwhm(x,-lineRWneg);
+    fwhmTV(iIm) = fwhm(x,lineTV) + fwhm(x,-lineTVneg);
+    fwhmTNV(iIm) = fwhm(x,lineTNV) + fwhm(x,-lineTNVneg);
+    nexttile,
+    plot(lineRW, 'LineWidth',1.5)
+    hold on
+    plot(lineTV, 'LineWidth',1.5)
+    plot(lineTNV, 'LineWidth',1.5)
+    hold off
+    legend({'RW','TV','TNV'}, 'NumColumns',3)
+    axis tight
+    ylim([-.4 .4])
+    zi = Properties.Depth_S(iz)*1000;
+    title(['Lateral difference at z=',num2str(zi,2),'mm, f_v=',...
+        num2str(freqArr(iIm)),'Hz'])
+end
+%%
+figure('Position', [100 100 600 400]),
+plot(VibFreqArray,fwhmRW,'o-', 'LineWidth',2)
+hold on
+plot(VibFreqArray,fwhmTV,'o-', 'LineWidth',2)
+plot(VibFreqArray,fwhmTNV,'o-', 'LineWidth',2)
+hold off
+legend({'R-WAVE','TV','TNV'}, 'Location','northwest');
+ylabel('FWHM [mm]'), xlabel('F_v')
+grid on
+xlim([180 380])
 
 %% --------------------------------------------------------------------- %%
 %% USEFUL FUNCTIONS

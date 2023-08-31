@@ -33,7 +33,8 @@ function [x, cost, error, fide, regul] = pdo_inv_tnv(y, H, W, A, lambda, tau, ma
 % Lipschitzian, proximable and linear composite terms. Journal of optimization theory and applications, 158(2), 460-479.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-	rho = 1.99;		% relaxation parameter, in [1,2]
+	%rho = 1.99;		% relaxation parameter, in [1,2]
+    rho = 1.2;
 	sigma = 1/tau/8; % proximal parameter
 
     numEstim = numberEstimators;
@@ -44,14 +45,14 @@ function [x, cost, error, fide, regul] = pdo_inv_tnv(y, H, W, A, lambda, tau, ma
     [~,n] = size(A);
     tic
     izq = speye(n) + tau*(AtA);
-    inv_izq = ( izq )^-1;
+    %inv_izq = ( izq )^-1;
     t = toc;
     fprintf("Inversion inicial: %f\n",t);
 
     tic
 	% INITIALIZATION OPTIONS TO HELP THE REGULARIZATION
     % x_ini = (A'*A)\(A'*y);% QR solver 
-    x_ini = cgs2(AtA, A'*y);    % CGS solver 
+    x_ini = cgs2(AtA, A'*y,1e-6,20);    % CGS solver 
     % x_ini = zeros([H, W, numEstim]); % zeros initialization
     t = toc;
     fprintf("Inicializacion de x: %f\n",t);
@@ -75,7 +76,7 @@ function [x, cost, error, fide, regul] = pdo_inv_tnv(y, H, W, A, lambda, tau, ma
 
     while (iter < maxIter)  
         % Data fidelity
-        x = prox_tau_f_generic(x2-tau*opDadj(u2),y,tau, inv_izq, At);
+        x = prox_tau_f_generic(x2-tau*opDadj(u2),y,tau, izq, At);
 		
         % Reg
         u = prox_sigma_g_conj(u2+sigma*opD(2*x-x2), lambda);
@@ -83,8 +84,8 @@ function [x, cost, error, fide, regul] = pdo_inv_tnv(y, H, W, A, lambda, tau, ma
 		x2 = x2 + rho*(x-x2);
 		u2 = u2 + rho*(u-u2);
        
-        fide(iter+1) = 0.5*sum((A*x(:) - y).^2);
-        regul(iter+1) = +lambda*TVnuclear_EMZ(x); 
+        fide(iter+1) = 0.5*sum((A*x2(:) - y).^2);
+        regul(iter+1) = +lambda*TVnuclear_EMZ(x2); 
         cost(iter+1) = fide(iter+1) + regul(iter+1);
 
         ee = abs(cost(iter+1) - cost(iter));      
@@ -101,6 +102,7 @@ function [x, cost, error, fide, regul] = pdo_inv_tnv(y, H, W, A, lambda, tau, ma
 
         iter = iter+1;
     end
+    x = x2;
 return
 
 % Proximal operator F 
@@ -108,13 +110,14 @@ return
 %   v           Multichanel image 
 %   B,At        Matrices from the linear system
 %   tau         Hyperparameter
-%   inv_izq     Inverse matrix of the paper for speed
+%   izq         Matrix of the paper for speed
 % Outputs:      
 %   u_3d        Next iteration multichannel image
-function [u_3d] = prox_tau_f_generic(v, B, tau, inv_izq, At)
+function [u_3d] = prox_tau_f_generic(v, B, tau, izq, At)
     [H,W,numEstim] = size(v);
     der = v(:)+tau*At*B(:);
-    u = ( inv_izq )* ( der );
+    %u = ( inv_izq )* ( der );
+    u = cgs2(izq,der,1e-1,10);
     u_3d = reshape(u, [H W numEstim]); % reshape as image
 return
 

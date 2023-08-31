@@ -28,7 +28,6 @@ while norm(r,2) > tol && ite_cgs < maxit
     p = -rn + beta*p;
     r = rn;
     ite_cgs = ite_cgs + 1;
-    %fprintf("CGS iteration %d\n",ite_cgs);
 end
-
+%fprintf("CGS iterations: %d\n",ite_cgs);
 end
