@@ -1,3 +1,4 @@
+% Script para procesar data de onda plana verasonics 13-09
 %% Loading filtered sono signal
 clear, clc
 addpath('./RegularizationFunctions/',"./ElastographyFunctions")

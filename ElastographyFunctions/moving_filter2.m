@@ -36,18 +36,14 @@ else
     disp('Incorrect direction');
 end
 mask=L>0;
-%win = fspecial('gaussian',[size(sono_filt,2) round(size(sono_filt,3)-1)],0.5);
+
 win = fspecial('gaussian',[size(sono_filt,2) size(sono_filt,3)],0.5);
 filt_mov=conv2(double(mask),win,'same'); 
 filt_mov = filt_mov./max(filt_mov(:));
 sono_filt_mov=zeros(size(sono_filt));
 
-for i=1:size(sono_filt,1)
+for i = 1:size(sono_filt,1)
     sono_filt_mov(i,:,:)=real(ifft2(ifftshift(fftshift(fft2(squeeze(sono_filt(i,:,:)))).*filt_mov)));
-%     sono_filt_mov(i,:,:)=filter2(squeeze(sono_filt(i,:,:)),h);
 end
-% mid=round(size(sono_filt,1)/2);
-% fft_mov=20*log10(abs(fftshift(fft2(squeeze(sono_filt(mid,:,:))))));
-% fft_mov=fft_mov-max(fft_mov(:));
 
 end

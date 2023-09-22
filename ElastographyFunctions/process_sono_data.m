@@ -2,7 +2,7 @@ function [sono_filt_mov,sono_filt,filt_mov]=process_sono_data(sono,Properties,mo
 
 % Median filter
 for t = 1:size(sono,3)
-    sono(:,:,t) = medfilt2(sono(:,:,t), [9,3], 'symmetric');
+    sono(:,:,t) = medfilt2(sono(:,:,t), [3,3], 'symmetric');
 end
 
 % Depth normalization
@@ -14,4 +14,4 @@ end
 %sono_filt = normalize(sono,2);
 
 % 2D directional filter
-[sono_filt_mov,filt_mov]=moving_filter2(sono_filt,Properties.FrameRate,Properties.pitch,Properties.VibFreq,Properties.VibFreqOffset,rd,move);
+[sono_filt_mov,filt_mov] = moving_filter2(sono_filt,Properties.FrameRate,Properties.pitch,Properties.VibFreq,Properties.VibFreqOffset,rd,move);

@@ -2,11 +2,11 @@
 clear, clc
 addpath('./RegularizationFunctions/',"./ElastographyFunctions")
 
-%baseDir = 'C:\Users\sebas\Documents\MATLAB\Elastography';
-baseDir = 'C:\Users\smerino.C084288\Documents\MATLAB\Datasets';
+baseDir = 'C:\Users\sebas\Documents\MATLAB\Elastography';
+%baseDir = 'C:\Users\smerino.C084288\Documents\MATLAB\Datasets';
 rawPath = [baseDir,'\heterogeneo_sono'];
-%baseDir2 =  'C:\Users\sebas\Documents\MATLAB\DataProCiencia\Elastrography\TV';
-baseDir2 = 'C:\Users\smerino.C084288\Documents\MATLAB\Datasets\Stefano';
+baseDir2 =  'C:\Users\sebas\Documents\MATLAB\DataProCiencia\Elastrography\TV';
+%baseDir2 = 'C:\Users\smerino.C084288\Documents\MATLAB\Datasets\Stefano';
 sonoPath = [baseDir2,'\sono'];
 swsPath = [baseDir2,'\sws'];
 

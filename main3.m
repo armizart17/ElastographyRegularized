@@ -153,19 +153,19 @@ for iIm = 1:Nim
     load([croppedDir,'\',num2str(iIm),'.mat'])
     load([swsDir,'\',num2str(iIm),'.mat']);
 
-%     fprintf("\nVibration Frequency = %d Hz\n",Properties.VibFreq);
-%     [swsTV,C] = calculateSWSTV(sono,Properties,ParamsTV);
-%     fprintf("Number of iterations: %d\n",length(C));
-%     % 
+    fprintf("\nVibration Frequency = %d Hz\n",Properties.VibFreq);
+    [swsTV,C] = calculateSWSTV(sono,Properties,ParamsTV);
+    fprintf("Number of iterations: %d\n",length(C));
+    % 
     tic
     swsRW = rWave2(sono,Properties,RW_Param);
     t = toc;
     fprintf('Exec. time for R-W: %f\n',t)
     
-%     tic
-%     swsCWT = process_CWT(sono,Properties,[1 16]);
-%     t = toc;
-%     fprintf('Exec. time for CWT: %f\n',t)
+    tic
+    swsCWT = process_CWT(sono,Properties,[1 16]);
+    t = toc;
+    fprintf('Exec. time for CWT: %f\n',t)
     
     save([swsDir,'\',num2str(iIm),'.mat'],...
         'swsTV','C','swsRW','swsCWT','Properties');
