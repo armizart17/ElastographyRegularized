@@ -1,9 +1,9 @@
 %% Loading filtered sono signal
 clear, clc
 addpath('./RegularizationFunctions/',"./ElastographyFunctions")
-baseDir = 'C:\Users\sebas\Documents\MATLAB\Elastography';
+% baseDir = 'C:\Users\sebas\Documents\MATLAB\Elastography';
 %baseDir = 'C:\Users\smerino.C084288\Documents\MATLAB\Datasets';
-sonoPath = [baseDir,'\heterogeneo_sono'];
+sonoPath = ['.\','heterogeneo_sono\'];
 swsRange = [2,8];  
 move = 'left';
 
@@ -11,7 +11,7 @@ move = 'left';
 load('MyColormaps.mat')
 
 % Pre-processing
-load([sonoPath, '\Image8\sono.mat']);
+load([sonoPath, 'Image8\sono.mat']);
 Properties.pitch = 3.0800e-04;
 [sonoFilt,~,~] = process_sono_data(sono,Properties,move,swsRange);
 %% Subsampling in depth
@@ -64,7 +64,8 @@ for iz = 1:Nz
         A1 = Az;
         B1 = Bz;
     else
-        A1 = [A1 sparse(size(A1,1),Nx);sparse(size(Az,1),Nx*(iz-1)),Az];
+        A1 = [A1        sparse(size(A1,1),Nx); 
+              sparse(size(Az,1),Nx*(iz-1)), Az];
         B1 = [B1;Bz];
     end
 end

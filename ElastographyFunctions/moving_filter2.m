@@ -1,4 +1,5 @@
 function [sono_filt_mov,filt_mov]=moving_filter2(sono_filt,FR,pitch,f,df,sd,mov)
+% function [sono_filt_mov,filt_mov]=moving_filter2(sono_filt,FR,pitch,f,df,sd,mov)
 index_p=0;
 [f1,f2] = freqspace([size(sono_filt,2) size(sono_filt,3)],'meshgrid');
 

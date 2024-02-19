@@ -65,6 +65,7 @@ for iIm = 1:Nim
     Properties.Bmode = Properties.Bmode(izBmode,:);
     Properties.Depth_B = Properties.Depth_B(izBmode);
     
+    %%%%%%%%%%%%%% PLOT PATTERN %%%%%%%%%%%%%%
     x = Properties.Width_S*1e3; % [mm]
     z = Properties.Depth_S*1e3; % [mm]
     nexttile(t1,iIm);
@@ -74,7 +75,9 @@ for iIm = 1:Nim
     axis equal
     axis tight
     title(['Sono f_v=',num2str(VibFreqArray(iIm)), 'Hz'])
+    %%%%%%%%%%%%%% PLOT PATTERN %%%%%%%%%%%%%%
 
+    %%%%%%%%%%%%%% PLOT B-MODE %%%%%%%%%%%%%%
     x = Properties.Width_B*1e3; % [mm]
     z = Properties.Depth_B*1e3; % [mm]
     nexttile(t2,iIm);
@@ -84,7 +87,8 @@ for iIm = 1:Nim
     axis equal
     axis tight
     title(['B-mode f_v=',num2str(VibFreqArray(iIm))])
-    
+    %%%%%%%%%%%%%% PLOT B-MODE %%%%%%%%%%%%%%
+
     save([sonoPath,'/',num2str(iIm),'.mat'],"sono","Properties");
 end
 
@@ -171,7 +175,7 @@ end
 x0inc = 15; z0 = 11; L = 11; x0back = 1.5;
 figure, 
 %imagesc(x,z,swsTV,SWS_im_range); colormap turbo
-imagesc(Properties.Width_B*1000,Properties.Depth_B*1000,...
+imagesc(Properties.Width_B*1e3,Properties.Depth_B*1e3,...
     Properties.Bmode); colormap gray
 colorbar
 axis equal
