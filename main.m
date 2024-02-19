@@ -1,14 +1,20 @@
+%% THIS MODIFICATION WAS MADE BY EMZ (February 2024)
+
 %% Loading filtered sono signal
 clear, clc
-addpath('./RegularizationFunctions/',"./ElastographyFunctions")
+addpath('./RegularizationFunctions/',"./ElastographyFunctions/")
 
-baseDir = 'C:\Users\sebas\Documents\MATLAB\Elastography';
-%baseDir = 'C:\Users\smerino.C084288\Documents\MATLAB\Datasets';
-rawPath = [baseDir,'\heterogeneo_sono'];
-baseDir2 =  'C:\Users\sebas\Documents\MATLAB\DataProCiencia\Elastrography\TV';
-%baseDir2 = 'C:\Users\smerino.C084288\Documents\MATLAB\Datasets\Stefano';
-sonoPath = [baseDir2,'\sono'];
-swsPath = [baseDir2,'\sws'];
+baseDir = './';
+rawPath = [baseDir,'heterogeneo_sono'];
+
+
+resultsDir =  './regu/';
+sonoPath = [resultsDir,'sono/'];
+swsPath = [resultsDir,'sws/'];
+
+if ~exist("resultsDir","dir"); mkdir(resultsDir); end
+if ~exist("sonoPath","dir"); mkdir(sonoPath); end
+if ~exist("swsPath","dir"); mkdir(swsPath); end
 
 % Colormap
 load('MyColormaps.mat')
@@ -17,16 +23,16 @@ load('MyColormaps.mat')
 %%% my modification 2
 %% Subsampling and cropping
 % Filtering
-swsRange = [2,8];  
+swsRange = [2,8]; % [m/s]
 move = 'left';
 
 % Cropping
-z0 = 4e-3;
-zf = 28e-3;
+z0 = 4e-3;  % [m]
+zf = 28e-3; % [m]
 
 % Looping
 Nim = 9; % Number of channels
-VibFreqArray = 200:20:360;
+VibFreqArray = 200:20:360; % [Hz]
 
 fig1 = figure('Position',[100 100 1000 500]);
 t1 = tiledlayout(fig1,3,3);
@@ -34,7 +40,7 @@ fig2 = figure('Position',[100 100 1000 500]);
 t2 = tiledlayout(fig2,3,3);
 for iIm = 1:Nim
     % Pre-processing
-    load([rawPath, '\Image',num2str(iIm),'\sono.mat']);
+    load([rawPath, '/Image',num2str(iIm),'/sono.mat']);
     Properties.pitch = 3.0800e-04;
     [sonoFilt,~,~] = process_sono_data(sono,Properties,move,swsRange);
 
@@ -59,18 +65,18 @@ for iIm = 1:Nim
     Properties.Bmode = Properties.Bmode(izBmode,:);
     Properties.Depth_B = Properties.Depth_B(izBmode);
     
-    x = Properties.Width_S*1000;
-    z = Properties.Depth_S*1000;
+    x = Properties.Width_S*1e3; % [mm]
+    z = Properties.Depth_S*1e3; % [mm]
     nexttile(t1,iIm);
     imagesc(x,z,sono(:,:,1),1.5*[-1 1])
     colormap(sonomap)
     colorbar
     axis equal
     axis tight
-    title(['Sono f_v=',num2str(VibFreqArray(iIm))])
+    title(['Sono f_v=',num2str(VibFreqArray(iIm)), 'Hz'])
 
-    x = Properties.Width_B*1000;
-    z = Properties.Depth_B*1000;
+    x = Properties.Width_B*1e3; % [mm]
+    z = Properties.Depth_B*1e3; % [mm]
     nexttile(t2,iIm);
     imagesc(x,z,Properties.Bmode)
     colormap gray
@@ -79,13 +85,13 @@ for iIm = 1:Nim
     axis tight
     title(['B-mode f_v=',num2str(VibFreqArray(iIm))])
     
-    save([sonoPath,'\',num2str(iIm),'.mat'],"sono","Properties");
+    save([sonoPath,'/',num2str(iIm),'.mat'],"sono","Properties");
 end
 
 %% --------------------------------------------------------------------- %%
 %% 2-DIMENSIONAL TOTAL VARIATION
 Nim = 9; % Number of channels
-swsPath = 'C:\Users\sebas\Documents\MATLAB\DataProCiencia\Elastrography\TV\sws';
+% swsPath = 'C:\Users\sebas\Documents\MATLAB\DataProCiencia\Elastrography\TV\sws';
 ParamsTV.mu = 5;
 ParamsTV.tol = 1e-1;
 ParamsTV.isotropic = true;
@@ -119,7 +125,7 @@ for iIm = 1:Nim
     t = toc;
     fprintf('Exec. time for CWT: %f\n',t)
     
-    save([swsPath,'\',num2str(iIm),'.mat'],...
+    save([swsPath,'/',num2str(iIm),'.mat'],...
         'swsTV','C','swsRW','swsCWT','Properties');
 
     % Selecting ROI
@@ -204,7 +210,7 @@ meanBackCWT = zeros(1,Nim);
 stdIncCWT = zeros(1,Nim);
 stdBackCWT = zeros(1,Nim);
 for iIm = 1:Nim
-    load([swsPath,'\',num2str(iIm),'.mat']);
+    load([swsPath,'/',num2str(iIm),'.mat']);
 
     swsInc = swsTV(maskInc);
     swsBack = swsTV(maskBack);
@@ -377,7 +383,7 @@ title(t,['Iterations, \lambda=',num2str(lambda,2),...
     ', \tau=',num2str(tau,2)])
 
 %% Selecting ROI
-swsPath = 'C:\Users\sebas\Documents\MATLAB\DataProCiencia\Elastrography\TV\sws';
+% swsPath = 'C:\Users\sebas\Documents\MATLAB\DataProCiencia\Elastrography\TV\sws';
 load([swsPath,'\1.mat']);
 x0inc = 15; z0 = 11; L = 11; x0back = 1.5;
 figure, 
@@ -395,7 +401,7 @@ title('B-mode ROI')
 ax = gca; ax.FontSize = 12;
 
 %% Calculating CNR
-[X,Z] = meshgrid(Properties.Width_S*1000,Properties.Depth_S*1000);
+[X,Z] = meshgrid(Properties.Width_S*1e3,Properties.Depth_S*1e3);
 maskInc = (X>x0inc & X<x0inc+L & Z>z0 & Z<z0+L);
 maskBack = (X>x0back & X<x0back+L & Z>z0 & Z<z0+L);
 
