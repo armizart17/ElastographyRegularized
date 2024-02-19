@@ -603,7 +603,7 @@ grid on
 xlim([180 380])
 ylim([2 14])
 
-%% --------------------------------------------------------------------- %%
+%% -------------------------------------------------------------------- %%
 %% USEFUL FUNCTIONS
 function [swsTV,C] = calculateSWSTV(sono,Properties,ParamsTV)
 % Generates the SWS map from the sonoelastography video
