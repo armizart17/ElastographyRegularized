@@ -13,6 +13,8 @@ swsPath = [baseDir2,'\sws'];
 % Colormap
 load('MyColormaps.mat')
 
+
+%%% my modification
 %% Subsampling and cropping
 % Filtering
 swsRange = [2,8];  
