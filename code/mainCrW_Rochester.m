@@ -27,7 +27,7 @@
 % have download the data.
 % 
 
-% NOTES EMZ
+% NOTES EMZ March
 % Image 1-20  120Hz - 500Hz
 % Image 21-40 120Hz - 500Hz
 % Image 41-60 120Hz - 500Hz
