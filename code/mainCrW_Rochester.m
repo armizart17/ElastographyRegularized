@@ -124,9 +124,9 @@ zf = 50e-3; % [m]
 
 % Looping
 % Nacq = input('Enter # of acquisitions: ');
-Nacq = 1; % Number of acquisitions
+Nacq = 3; % Number of acquisitions
 % Nim = input('Enter # of freq. channels: ');
-Nim = 1; % Number of channels
+Nim = 20; % Number of channels
 VibFreqArray = 120:20:500; % [Hz]
 
 % Plots
@@ -137,20 +137,20 @@ caxis_bmode = [-60 0]; % [dB]
 for iacq = 1:Nacq
 
 fig1 = figure(10*iacq);
-set(10*iacq, 'Position',[100 100 1000 500]);
-t1 = tiledlayout(fig1,3,3);
+set(10*iacq, 'Position',[100 100 1500 1000]);
+t1 = tiledlayout(fig1,4,5);
 sgtitle(['\bf Sono Filt Acq #', num2str(iacq)], 'FontSize', font );
 
 fig2 = figure(10*iacq+1);
-set(10*iacq+1, 'Position',[100 100 1000 500]);
-t2 = tiledlayout(fig2,3,3);
+set(10*iacq+1, 'Position',[100 100 1500 1000]);
+t2 = tiledlayout(fig2,4,5);
 sgtitle(['\bf B-mode Acq #', num2str(iacq)], 'FontSize', font );
 
 for iIm = 1:Nim
     % Pre-processing
 
-    load([dataDir, 'MatlabProcessed/Image', num2str(iIm),'/sono.mat']);
-    load([dataDir, 'MatlabProcessed/Image', num2str(iIm),'/sono_filt.mat']);
+    load([dataDir, 'MatlabProcessed/Image', num2str(10*iacq+iIm),'/sono.mat']);
+    load([dataDir, 'MatlabProcessed/Image', num2str(10*iacq+iIm),'/sono_filt.mat']);
 
 
     % Subsampling
