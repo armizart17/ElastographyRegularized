@@ -227,9 +227,9 @@ RW_Param.alpha=2;
 
 % Looping
 % Nacq = input('Enter # of acquisitions: ');
-Nacq = 1; % Number of acquisitions
+Nacq = 3; % Number of acquisitions
 % Nim = input('Enter # of freq. channels: ');
-Nim = 1; % Number of channels
+Nim = 20; % Number of channels
 VibFreqArray = 120:20:500; % [Hz]
 
 for iacq = 1:Nacq
@@ -239,10 +239,10 @@ set(10*iacq+2, 'Position',[100 50 1500 800]);
 t1 = tiledlayout(fig1,4,5);
 sgtitle(['\bf SWS R-WAVE Method Acq #', num2str(iacq)], 'FontSize', font );
 
-% fig2 = figure(10*iacq+3);
-% set(10*iacq+3, 'Position',[100 50 1500 800]);
-% t2 = tiledlayout(fig2,4,5);
-% sgtitle(['\bf SWS TV Method Acq #', num2str(iacq)], 'FontSize', font );
+fig2 = figure(10*iacq+3);
+set(10*iacq+3, 'Position',[100 50 1500 800]);
+t2 = tiledlayout(fig2,4,5);
+sgtitle(['\bf SWS TV Method Acq #', num2str(iacq)], 'FontSize', font );
 
 
 for iIm = 1:Nim
@@ -287,8 +287,8 @@ for iIm = 1:Nim
     fprintf('Exec. time for R-W: %f\n',t)
 
     fprintf("\nVibration Frequency = %d Hz\n",Properties.VibFreq);
-%     [swsTV,C,lin_system] = calculateSWSTV(sono,Properties,ParamsTV);
-    swsTV=1; C=1; linSystem=1;
+    [swsTV,C,lin_system] = calculateSWSTV(sono,Properties,ParamsTV);
+%     swsTV=1; C=1; linSystem=1;
     fprintf("Number of iterations: %d\n",length(C));
     
 
@@ -320,16 +320,18 @@ for iIm = 1:Nim
     ax = gca; ax.FontSize = 12;
 
     % PLOT SWS TV
-%     nexttile(t2,iIm);
-%     imagesc(x,z,swsTV,SWS_im_range);
-%     colormap turbo
-%     colorbar
-%     axis equal
-%     xlim([x(1) x(end)]), xlabel('x [mm]')
-%     ylim([z(1) z(end)]), ylabel('z [mm]')
+    nexttile(t2,iIm);
+    imagesc(x,z,swsTV,SWS_im_range);
+    colormap turbo
+    colorbar
+    axis equal
+    xlim([x(1) x(end)]), xlabel('x [mm]')
+    ylim([z(1) z(end)]), ylabel('z [mm]')
 %     title(['\mu=',num2str(ParamsTV.mu,2),...
 %         ', f_v=',num2str(Properties.VibFreq),'Hz'])
-%     ax = gca; ax.FontSize = 12;
+    title([...
+        'f_v=',num2str(Properties.VibFreq),'Hz'])
+    ax = gca; ax.FontSize = 12;
  
     % PLOT SWS CWT
 %     nexttile(t3,iIm);
@@ -345,7 +347,7 @@ for iIm = 1:Nim
 end
 
 end
-
+save_all_figures_to_directory(outiniPath);
 
 %% Selecting ROI
 x0inc = 15; z0 = 11; L = 11; x0back = 1.5;
