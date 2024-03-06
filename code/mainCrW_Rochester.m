@@ -11,7 +11,7 @@
 % I think the only thing missing are the dimension parameters. 
 % Roberto's student can open each correspondent .mat file and run these 
 % lines for the axial and lateral sizes in mm, respectively:
-% 
+% sa 
 % zz=10^3*d1.movies.simplexMovies(1,3).params(128,1).value;
 % xx=10^3*d1.movies.simplexMovies(1,3).params(133,1).value;
 % 
