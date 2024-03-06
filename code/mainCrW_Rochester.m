@@ -218,60 +218,120 @@ RW_Param.N_window = 20; RW_Param.beta = 1/100000;
 RW_Param.tolerance = 1/1000;RW_Param.operator = 'G';
 RW_Param.alpha=2;
 
-fig1 = figure('Position',[100 100 1000 500]);
-t1 = tiledlayout(fig1,3,3);
-fig2 = figure('Position',[100 100 1000 500]);
-t2 = tiledlayout(fig2,3,3);
-fig3 = figure('Position',[100 100 1000 500]);
-t3 = tiledlayout(fig3,3,3);
+% fig1 = figure('Position',[100 100 1000 500]);
+% t1 = tiledlayout(fig1,3,3);
+% fig2 = figure('Position',[100 100 1000 500]);
+% t2 = tiledlayout(fig2,3,3);
+% fig3 = figure('Position',[100 100 1000 500]);
+% t3 = tiledlayout(fig3,3,3);
+
+% Looping
+% Nacq = input('Enter # of acquisitions: ');
+Nacq = 1; % Number of acquisitions
+% Nim = input('Enter # of freq. channels: ');
+Nim = 1; % Number of channels
+VibFreqArray = 120:20:500; % [Hz]
+
+for iacq = 1:Nacq
+
+fig1 = figure(10*iacq+2);
+set(10*iacq+2, 'Position',[100 50 1500 800]);
+t1 = tiledlayout(fig1,4,5);
+sgtitle(['\bf SWS R-WAVE Method Acq #', num2str(iacq)], 'FontSize', font );
+
+% fig2 = figure(10*iacq+3);
+% set(10*iacq+3, 'Position',[100 50 1500 800]);
+% t2 = tiledlayout(fig2,4,5);
+% sgtitle(['\bf SWS TV Method Acq #', num2str(iacq)], 'FontSize', font );
+
+
 for iIm = 1:Nim
-    load([sonoPath,'\',num2str(iIm),'.mat'])
+%     load([sonoPath,'\',num2str(iIm),'.mat'])
     %load([swsPath,'\',num2str(iIm),'.mat']);
 
-    fprintf("\nVibration Frequency = %d Hz\n",Properties.VibFreq);
-    [swsTV,C, lin_system] = calculateSWSTV(sono,Properties,ParamsTV);
-    fprintf("Number of iterations: %d\n",length(C));
+
+    load([dataDir, 'MatlabProcessed/Image', num2str(10*iacq+iIm),'/sono_filt.mat']);
+
+    % Subsampling
+    R = 2; % DECIMATION FACTOR
+    [Nz,Nx,Nt] = size(sono_filt);
+    sonoNew = zeros([ceil(Nz/R),Nx,Nt]);
+    [b,a] = butter(4,1/R);
+    for ix = 1:Nx
+        for it = 1:Nt
+            signal = filtfilt(b,a,sono_filt(:,ix,it));
+            sonoNew(:,ix,it) = signal(1:R:end);
+        end
+    end
     
+    % Selecting ROI
+    zNew = z_s(1:2:end);
+    izROI = zNew>z0 & zNew<zf;
+    sono = sonoNew(izROI,:,:);
+    Properties.Depth_S = zNew(izROI);
+    izBmode = z_b >z0 & z_b <zf;
+    Properties.Bmode = Bmode(izBmode,:);
+    Properties.Depth_B = z_b(izBmode);
+    Properties.Width_B = x_b;
+    
+    x = x_s*1e3; % [mm]
+    z = z_s*1e3; % [mm]
+
+
+    Properties.VibFreq = VibFreqArray(iIm);
+    Properties.pitch = 3.0800e-04; % [m]
+
     tic
     swsRW = rWave2(sono,Properties,RW_Param);
     t = toc;
     fprintf('Exec. time for R-W: %f\n',t)
+
+    fprintf("\nVibration Frequency = %d Hz\n",Properties.VibFreq);
+%     [swsTV,C,lin_system] = calculateSWSTV(sono,Properties,ParamsTV);
+    swsTV=1; C=1; linSystem=1;
+    fprintf("Number of iterations: %d\n",length(C));
+    
+
     
     tic
-    swsCWT = process_CWT(sono,Properties,[1 16]);
+%     swsCWT = process_CWT(sono,Properties,[1 16]); % nnot yet
+    swsCWT = 1;
     t = toc;
     fprintf('Exec. time for CWT: %f\n',t)
     
-    save([swsPath,'/',num2str(iIm),'.mat'],...
-        'swsTV','C','swsRW','swsCWT','Properties');
+%     save([swsPath,'/',num2str(iIm),'.mat'],...
+%         'swsTV','C','swsRW','swsCWT','Properties');
 
     % Selecting ROI
-    x = Properties.Width_S*1000;
-    z = Properties.Depth_S*1000;
+%     x = Properties.Width_S*1000;
+%     z = Properties.Depth_S*1000;
     SWS_im_range = [2 6];
     
+    % PLOT SWS R-WAVE
     nexttile(t1,iIm);
-    imagesc(x,z,swsTV,SWS_im_range);
-    colormap turbo
-    colorbar
-    axis equal
-    xlim([x(1) x(end)]), xlabel('x [mm]')
-    ylim([z(1) z(end)]), ylabel('z [mm]')
-    title(['SWS from TV, \mu=',num2str(ParamsTV.mu,2),...
-        ', f_v=',num2str(Properties.VibFreq)])
-    ax = gca; ax.FontSize = 12;
-
-    nexttile(t2,iIm);
     imagesc(x,z,swsRW,SWS_im_range);
     colormap turbo
     colorbar
     axis equal
     xlim([x(1) x(end)]), xlabel('x [mm]')
     ylim([z(1) z(end)]), ylabel('z [mm]')
-    title(['SWS from RW, \alpha=',num2str(RW_Param.alpha,2),...
-        ', f_v=',num2str(Properties.VibFreq)])
+    title(['\alpha=',num2str(RW_Param.alpha,2),...
+        ', f_v=',num2str(Properties.VibFreq), 'Hz'])
     ax = gca; ax.FontSize = 12;
+
+    % PLOT SWS TV
+%     nexttile(t2,iIm);
+%     imagesc(x,z,swsTV,SWS_im_range);
+%     colormap turbo
+%     colorbar
+%     axis equal
+%     xlim([x(1) x(end)]), xlabel('x [mm]')
+%     ylim([z(1) z(end)]), ylabel('z [mm]')
+%     title(['\mu=',num2str(ParamsTV.mu,2),...
+%         ', f_v=',num2str(Properties.VibFreq),'Hz'])
+%     ax = gca; ax.FontSize = 12;
  
+    % PLOT SWS CWT
 %     nexttile(t3,iIm);
 %     swsCwtIm = squeeze(mean(swsCWT,3));
 %     imagesc(x,z,swsCwtIm,SWS_im_range);
@@ -283,6 +343,9 @@ for iIm = 1:Nim
 %     title(['SWS from CWT, f_v=',num2str(Properties.VibFreq)])
 %     ax = gca; ax.FontSize = 12;
 end
+
+end
+
 
 %% Selecting ROI
 x0inc = 15; z0 = 11; L = 11; x0back = 1.5;
